@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teleserye AI Script Analyzer</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        .editor-textarea {
+            min-height: 500px;
+            font-family: 'Courier New', monospace;
+        }
+        .ai-response {
+            white-space: pre-wrap;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .cliche-badge {
+            transition: all 0.2s ease;
+        }
+        .cliche-badge:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-12 text-center">
+            <h1 class="text-4xl font-bold text-red-700 mb-2">Teleserye AI Script Doctor</h1>
+            <p class="text-xl text-gray-600">Elevate your teleserye script with AI-powered analysis</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <!-- Script Input Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Your Script</h2>
+                <div class="flex justify-between text-sm text-gray-500 mb-2">
+                    <span id="word-count">0 words</span>
+                    <span id="char-count">0 characters</span>
+                </div>
+                <textarea id="script-input" class="editor-textarea w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"></textarea>
+                <button id="analyze-btn" class="mt-4 w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+                    <i class="fas fa-search mr-2"></i> Analyze Script
+                </button>
+            </div>
+
+            <!-- Results Section -->
+            <div class="bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-2xl font-semibold mb-4 text-gray-800">Analysis Results</h2>
+                
+                <div id="loading-indicator" class="hidden text-center py-8">
+                    <div class="loading-spinner inline-block w-8 h-8 border-4 border-red-500 border-t-transparent rounded-full mb-2"></div>
+                    <p class="text-gray-600">Analyzing your script with AI...</p>
+                </div>
+                
+                <div id="results-container" class="hidden">
+                    <!-- Basic Analysis -->
+                    <div class="mb-8">
+                        <h3 class="text-xl font-medium mb-3 text-gray-700 border-b pb-2">Cliche Detection</h3>
+                        <div id="basic-results" class="flex flex-wrap gap-2 mb-4">
+                            <!-- Cliche badges will appear here -->
+                        </div>
+                        <div id="no-cliches" class="text-center py-4 text-green-600">
+                            <i class="fas fa-check-circle text-3xl mb-2"></i>
+                            <p>No common clichés detected!</p>
+                        </div>
+                    </div>
+                    
+                    <!-- AI Analysis -->
+                    <div>
+                        <h3 class="text-xl font-medium mb-3 text-gray-700 border-b pb-2">AI Recommendations</h3>
+                        <div id="ai-analysis" class="ai-response bg-gray-50 p-4 rounded-lg">
+                            <!-- AI response will appear here -->
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="empty-state" class="text-center py-12 text-gray-500">
+                    <i class="fas fa-scroll text-4xl mb-4"></i>
+                    <h3 class="text-xl font-medium mb-2">Ready to Analyze</h3>
+                    <p>Enter your teleserye script to receive AI-powered feedback</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+   // Replace your existing script section with this improved version
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const scriptInput = document.getElementById('script-input');
+        const analyzeBtn = document.getElementById('analyze-btn');
+        const wordCount = document.getElementById('word-count');
+        const charCount = document.getElementById('char-count');
+        const loadingIndicator = document.getElementById('loading-indicator');
+        const resultsContainer = document.getElementById('results-container');
+        const emptyState = document.getElementById('empty-state');
+        const basicResults = document.getElementById('basic-results');
+        const noCliches = document.getElementById('no-cliches');
+        const aiAnalysis = document.getElementById('ai-analysis');
+        
+        // Update character and word count
+        scriptInput.addEventListener('input', function() {
+            const text = this.value;
+            charCount.textContent = `${text.length} characters`;
+            wordCount.textContent = `${text.trim() ? text.trim().split(/\s+/).length : 0} words`;
+        });
+        
+        // Analyze button click handler
+        analyzeBtn.addEventListener('click', async function() {
+            const script = scriptInput.value.trim();
+            
+            if (!script) {
+                showAlert('Please enter a script to analyze', 'error');
+                return;
+            }
+            
+            // Show loading state
+            loadingIndicator.classList.remove('hidden');
+            resultsContainer.classList.add('hidden');
+            emptyState.classList.add('hidden');
+            
+            try {
+                const response = await fetch('http://localhost:5001/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `script=${encodeURIComponent(script)}`
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Server responded with status ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                
+                // Display basic results
+                basicResults.innerHTML = '';
+                if (data.basic_analysis && Object.keys(data.basic_analysis).length > 0) {
+                    noCliches.classList.add('hidden');
+                    for (const [cliche, items] of Object.entries(data.basic_analysis)) {
+                        const category = items[0].category;
+                        const badge = document.createElement('div');
+                        badge.className = `cliche-badge bg-${category === 'plot_device' ? 'red' : 'orange'}-100 text-${category === 'plot_device' ? 'red' : 'orange'}-800 px-3 py-1 rounded-full text-sm font-medium`;
+                        badge.textContent = cliche.replace(/-/g, ' ');
+                        basicResults.appendChild(badge);
+                    }
+                } else {
+                    noCliches.classList.remove('hidden');
+                }
+                
+                // Display AI analysis
+                aiAnalysis.textContent = data.ai_analysis || "No AI analysis available";
+                
+                // Show results
+                resultsContainer.classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Analysis error:', error);
+                showAlert(`Analysis failed: ${error.message}`, 'error');
+            } finally {
+                loadingIndicator.classList.add('hidden');
+            }
+        });
+        
+        function showAlert(message, type = 'error') {
+            // Remove any existing alerts
+            const existingAlert = document.querySelector('.custom-alert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+            
+            const alert = document.createElement('div');
+            alert.className = `custom-alert fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+                type === 'error' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'
+            }`;
+            alert.innerHTML = `
+                <div class="flex items-center">
+                    <i class="fas ${type === 'error' ? 'fa-exclamation-circle' : 'fa-check-circle'} mr-2"></i>
+                    <span>${message}</span>
+                </div>
+            `;
+            
+            document.body.appendChild(alert);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                alert.remove();
+            }, 5000);
+        }
+    });
+</script>
+</body>
+</html>
